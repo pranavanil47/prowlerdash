@@ -1,5 +1,8 @@
 version: '3.8'
 
+# Docker Compose for Prowler Dashboard
+# Pulls and builds from: https://github.com/pranavanil47/prowlerdash
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -19,12 +22,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-    command: >
-      sh -c "
-        echo 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";' > /docker-entrypoint-initdb.d/01-extensions.sql &&
-        echo 'GRANT ALL PRIVILEGES ON DATABASE prowler_db TO prowler_user;' > /docker-entrypoint-initdb.d/02-permissions.sql &&
-        docker-entrypoint.sh postgres
-      "
 
   app:
     build:
@@ -34,6 +31,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
@@ -41,8 +40,6 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
     ports:
       - "5000:5000"
-    volumes:
-      - app_logs:/app/logs
     networks:
       - prowler-network
     restart: unless-stopped
@@ -65,8 +62,7 @@ services:
       - prowler-network
     command: >
       sh -c "
-        echo 'Waiting for database to be ready...' &&
-        sleep 5 &&
+        echo 'Setting up database extensions and permissions...' &&
         psql -h postgres -U ${POSTGRES_USER:-prowler_user} -d ${POSTGRES_DB:-prowler_db} -c \"
           CREATE EXTENSION IF NOT EXISTS \\\"uuid-ossp\\\";
           GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_DB:-prowler_db} TO ${POSTGRES_USER:-prowler_user};
@@ -77,14 +73,65 @@ services:
           ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${POSTGRES_USER:-prowler_user};
           ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO ${POSTGRES_USER:-prowler_user};
         \" &&
-        echo 'Database setup completed!'
+        echo 'Database setup completed successfully!'
+      "
+    restart: "no"
+
+  # Admin user creation service (runs after app is up)
+  create-admin:
+    build:
+      context: https://github.com/pranavanil47/prowlerdash.git
+      dockerfile: Dockerfile
+    container_name: prowler-create-admin
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+    networks:
+      - prowler-network
+    command: >
+      sh -c "
+        echo 'Waiting for application to be fully ready...' &&
+        sleep 10 &&
+        echo 'Creating default admin user...' &&
+        node -e \"
+          import bcrypt from 'bcrypt';
+          import { storage } from './server/storage.js';
+          
+          async function createAdmin() {
+            try {
+              const existing = await storage.getUserByEmail('admin@email.com');
+              if (existing) {
+                console.log('Admin user already exists');
+                return;
+              }
+              
+              const passwordHash = await bcrypt.hash('admin', 10);
+              const user = await storage.createUser({
+                email: 'admin@email.com',
+                username: 'admin',
+                passwordHash,
+                role: 'admin',
+                firstName: 'Admin',
+                lastName: 'User'
+              });
+              console.log('Admin user created:', user.email);
+            } catch (error) {
+              console.error('Error creating admin:', error);
+            }
+            process.exit(0);
+          }
+          
+          createAdmin();
+        \" &&
+        echo 'Admin user setup completed!'
       "
     restart: "no"
 
 volumes:
   postgres_data:
-    driver: local
-  app_logs:
     driver: local
 
 networks:

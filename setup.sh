@@ -2,8 +2,11 @@
 
 # Prowler Dashboard - Docker Setup Script
 # This script creates the necessary .env file for running the application with Docker Compose
+# Pulls code from: https://github.com/pranavanil47/prowlerdash
 
-echo "🚀 Setting up Prowler Dashboard for Docker deployment..."
+echo "🚀 Setting up Prowler Dashboard from GitHub repository..."
+echo "📡 Repository: https://github.com/pranavanil47/prowlerdash"
+echo ""
 
 # Generate a secure session secret
 SESSION_SECRET=$(openssl rand -base64 32)
@@ -32,6 +35,7 @@ REPL_ID=
 EOF
 
 echo "✅ Created .env file with the following configuration:"
+echo "   - Repository: https://github.com/pranavanil47/prowlerdash"
 echo "   - Database: PostgreSQL (prowler_db)"
 echo "   - User: prowler_user"
 echo "   - Session secret: Generated securely"
@@ -39,10 +43,19 @@ echo "   - Port: 5000"
 echo ""
 echo "📝 To run the application:"
 echo "   1. docker-compose up --build"
-echo "   2. Open http://localhost:5000"
+echo "   2. Wait for database setup to complete"
+echo "   3. Open http://localhost:5000"
 echo ""
-echo "🔐 Default admin credentials:"
+echo "🔐 Default admin credentials will be created automatically:"
 echo "   Email: admin@email.com"
 echo "   Password: admin"
 echo ""
-echo "⚠️  Remember to change the default admin password after first login!"
+echo "⚠️  Important notes:"
+echo "   - First run will take longer as it clones and builds from GitHub"
+echo "   - Database schema will be automatically created"
+echo "   - Remember to change the default admin password after first login!"
+echo ""
+echo "🐳 Docker services:"
+echo "   - prowler-app: Main application (port 5000)"
+echo "   - prowler-db: PostgreSQL database (port 5432)"
+echo "   - prowler-db-setup: One-time database initialization"
