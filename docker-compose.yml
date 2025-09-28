@@ -34,6 +34,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
@@ -54,30 +56,25 @@ services:
 
   # Database initialization service
   db-setup:
-    image: postgres:15-alpine
+    build:
+      context: https://github.com/pranavanil47/prowlerdash.git
+      dockerfile: Dockerfile
     container_name: prowler-db-setup
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD:-prowler_password}
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
     networks:
       - prowler-network
     command: >
       sh -c "
         echo 'Waiting for database to be ready...' &&
-        sleep 5 &&
-        psql -h postgres -U ${POSTGRES_USER:-prowler_user} -d ${POSTGRES_DB:-prowler_db} -c \"
-          CREATE EXTENSION IF NOT EXISTS \\\"uuid-ossp\\\";
-          GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_DB:-prowler_db} TO ${POSTGRES_USER:-prowler_user};
-          GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${POSTGRES_USER:-prowler_user};
-          GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${POSTGRES_USER:-prowler_user};
-          GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO ${POSTGRES_USER:-prowler_user};
-          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${POSTGRES_USER:-prowler_user};
-          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${POSTGRES_USER:-prowler_user};
-          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO ${POSTGRES_USER:-prowler_user};
-        \" &&
-        echo 'Database setup completed!'
+        sleep 10 &&
+        echo 'Initializing database schema and admin user...' &&
+        node scripts/init-db.js &&
+        echo 'Database initialization completed!'
       "
     restart: "no"
 
