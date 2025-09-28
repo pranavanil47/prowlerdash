@@ -41,6 +41,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       PORT: ${PORT:-5000}
       NODE_ENV: ${NODE_ENV:-production}
+      TRUST_PROXY: "true"
+      COOKIE_SECURE: "false"
     ports:
       - "5000:5000"
     volumes:

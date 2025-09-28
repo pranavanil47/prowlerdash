@@ -23,6 +23,10 @@ SESSION_SECRET=${SESSION_SECRET}
 PORT=5000
 NODE_ENV=production
 
+# Docker Session Fix (prevents session token issues in containers)
+TRUST_PROXY=true
+COOKIE_SECURE=false
+
 # PostgreSQL Database Variables (for container)
 POSTGRES_DB=prowler_db
 POSTGRES_USER=prowler_user
@@ -61,6 +65,7 @@ echo ""
 echo "⚠️  Important notes:"
 echo "   - First run will take longer as it clones and builds from GitHub"
 echo "   - Database schema will be automatically created"
+echo "   - Session persistence is configured for Docker (TRUST_PROXY=true, COOKIE_SECURE=false)"
 echo "   - Remember to change the default admin password after first login!"
 echo ""
 echo "🐳 Docker services:"

@@ -39,7 +39,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.COOKIE_SECURE === 'false' ? false : process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -47,7 +48,7 @@ export function getSession() {
 
 
 export async function setupAuth(app: Express) {
-  app.set("trust proxy", 1);
+  app.set("trust proxy", process.env.TRUST_PROXY === 'true' ? true : 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
