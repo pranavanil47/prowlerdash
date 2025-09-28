@@ -1,9 +1,6 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 let _pool: Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -20,7 +17,7 @@ function initializeDatabase() {
   }
 
   if (!_db) {
-    _db = drizzle({ client: _pool, schema });
+    _db = drizzle(_pool, { schema });
   }
 
   return { pool: _pool, db: _db };

@@ -1,6 +1,9 @@
 # Prowler Dashboard Dockerfile
 FROM node:20-alpine
 
+# Install PostgreSQL client and build dependencies for pg native bindings
+RUN apk add --no-cache postgresql-client python3 make g++
+
 # Set working directory
 WORKDIR /app
 
