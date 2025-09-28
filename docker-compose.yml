@@ -43,8 +43,8 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       TRUST_PROXY: "true"
       COOKIE_SECURE: "false"
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - app_logs:/app/logs
     networks:
@@ -55,6 +55,43 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Nginx reverse proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: prowler-nginx
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_certs:/etc/nginx/certs
+      - nginx_logs:/var/log/nginx
+    networks:
+      - prowler-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "
+        if [ ! -f /etc/nginx/certs/cert.pem ]; then
+          echo 'Generating SSL certificates...'
+          apk add --no-cache openssl
+          mkdir -p /etc/nginx/certs
+          openssl genrsa -out /etc/nginx/certs/key.pem 2048
+          openssl req -new -key /etc/nginx/certs/key.pem -out /etc/nginx/certs/cert.csr -subj '/C=US/ST=State/L=City/O=Organization/CN=localhost'
+          openssl x509 -req -in /etc/nginx/certs/cert.csr -signkey /etc/nginx/certs/key.pem -out /etc/nginx/certs/cert.pem -days 365
+          rm /etc/nginx/certs/cert.csr
+          echo 'SSL certificates generated successfully!'
+        fi
+        nginx -g 'daemon off;'
+      "
 
   # Database initialization service
   db-setup:
@@ -84,6 +121,10 @@ volumes:
   postgres_data:
     driver: local
   app_logs:
+    driver: local
+  nginx_certs:
+    driver: local
+  nginx_logs:
     driver: local
 
 networks:
